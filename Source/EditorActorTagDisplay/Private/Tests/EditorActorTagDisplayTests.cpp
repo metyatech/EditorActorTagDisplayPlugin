@@ -9,29 +9,9 @@
 #include "EditorActorTagDisplayTemplateFormatter.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "NativeGameplayTags.h"
+#include "GameplayTagContainer.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "Misc/AutomationTest.h"
-
-#pragma push_macro("UE_PLUGIN_NAME")
-#pragma push_macro("UE_MODULE_NAME")
-#undef UE_PLUGIN_NAME
-#undef UE_MODULE_NAME
-// UE rejects native tags attributed to an Editor module. These test-only tags use an
-// existing Runtime engine plugin for metadata validation and do not add a dependency.
-#define UE_PLUGIN_NAME FName(TEXT("EnhancedInput"))
-#define UE_MODULE_NAME FName(TEXT("EnhancedInput"))
-
-UE_DEFINE_GAMEPLAY_TAG_STATIC(
-    TAG_EditorActorTagDisplay_Test_Alpha,
-    "EditorActorTagDisplay.Test.Alpha");
-
-UE_DEFINE_GAMEPLAY_TAG_STATIC(
-    TAG_EditorActorTagDisplay_Test_Zeta,
-    "EditorActorTagDisplay.Test.Zeta");
-
-#pragma pop_macro("UE_MODULE_NAME")
-#pragma pop_macro("UE_PLUGIN_NAME")
 
 namespace
 {
@@ -126,8 +106,22 @@ bool FEditorActorTagDisplayFixedTemplateTokensTest::RunTest(const FString& Param
 
     Actor->SetActorLabel(TEXT("Display Label"));
     Actor->Tags = {FName(TEXT("zeta")), FName(TEXT("Alpha"))};
-    Actor->GameplayTags.AddTag(TAG_EditorActorTagDisplay_Test_Zeta.GetTag());
-    Actor->GameplayTags.AddTag(TAG_EditorActorTagDisplay_Test_Alpha.GetTag());
+    const FGameplayTag AlphaTag = FGameplayTag::RequestGameplayTag(
+        FName(TEXT("EditorActorTagDisplay.Test.Alpha")),
+        false);
+
+    const FGameplayTag ZetaTag = FGameplayTag::RequestGameplayTag(
+        FName(TEXT("EditorActorTagDisplay.Test.Zeta")),
+        false);
+
+    if (!TestTrue(TEXT("Alpha automation tag is loaded from the host project config"), AlphaTag.IsValid()) ||
+        !TestTrue(TEXT("Zeta automation tag is loaded from the host project config"), ZetaTag.IsValid()))
+    {
+        return false;
+    }
+
+    Actor->GameplayTags.AddTag(ZetaTag);
+    Actor->GameplayTags.AddTag(AlphaTag);
     Actor->SetFolderPath(FName(TEXT("OverlayTests/Folder")));
 
     TSet<FString> Warnings;
