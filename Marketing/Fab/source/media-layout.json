@@ -1,0 +1,22 @@
+{
+  "canvas": {"width": 1920, "height": 1080, "safe_margin": 96},
+  "colors": {
+    "background": "#111318",
+    "text": "#F5F7FA",
+    "secondary": "#A6ADB8",
+    "accent": "#36C8FF",
+    "card": "#161A22",
+    "accent_green": "#58E6A8",
+    "accent_warm": "#FFB454"
+  },
+  "fonts": {
+    "title": "C:/Windows/Fonts/segoeuib.ttf",
+    "body": "C:/Windows/Fonts/segoeui.ttf",
+    "code": "C:/Windows/Fonts/consola.ttf"
+  },
+  "layouts": {
+    "A": {"heading_y": 88, "tagline_y": 148, "content_y": 226, "content_h": 686},
+    "B": {"heading_y": 88, "tagline_y": 148, "content_y": 226, "content_h": 654},
+    "C": {"heading_y": 88, "tagline_y": 148, "content_y": 264, "content_h": 568}
+  }
+}
