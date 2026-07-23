@@ -64,3 +64,7 @@ Supported types are booleans, signed and unsigned integers, floats, doubles, enu
 ## Rule Priority
 
 Rules are evaluated in array order. The first enabled rule satisfying class, inheritance, required-tag, and excluded-tag conditions owns the actor. Later matching rules are ignored.
+
+## Viewport Behavior
+
+Overlays appear in normal Level Editor Viewports, including Perspective, Top, Front, Side, and split Level Editor layouts. They remain visible with **Game View** off and are hidden with **Game View** on, in PIE or SIE game screens, and in Static Mesh Editor or other Asset Preview Viewports. The **Data Layers** token is non-empty only when the actor belongs to data layers in a World Partition map.

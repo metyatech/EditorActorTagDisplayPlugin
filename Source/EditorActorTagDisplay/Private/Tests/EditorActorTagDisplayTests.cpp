@@ -7,8 +7,31 @@
 #include "EditorActorTagDisplayRuleMatcher.h"
 #include "EditorActorTagDisplaySettings.h"
 #include "EditorActorTagDisplayTemplateFormatter.h"
-#include "GameplayTagsManager.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "NativeGameplayTags.h"
+#include "Tests/AutomationEditorCommon.h"
 #include "Misc/AutomationTest.h"
+
+#pragma push_macro("UE_PLUGIN_NAME")
+#pragma push_macro("UE_MODULE_NAME")
+#undef UE_PLUGIN_NAME
+#undef UE_MODULE_NAME
+// UE rejects native tags attributed to an Editor module. These test-only tags use an
+// existing Runtime engine plugin for metadata validation and do not add a dependency.
+#define UE_PLUGIN_NAME FName(TEXT("EnhancedInput"))
+#define UE_MODULE_NAME FName(TEXT("EnhancedInput"))
+
+UE_DEFINE_GAMEPLAY_TAG_STATIC(
+    TAG_EditorActorTagDisplay_Test_Alpha,
+    "EditorActorTagDisplay.Test.Alpha");
+
+UE_DEFINE_GAMEPLAY_TAG_STATIC(
+    TAG_EditorActorTagDisplay_Test_Zeta,
+    "EditorActorTagDisplay.Test.Zeta");
+
+#pragma pop_macro("UE_MODULE_NAME")
+#pragma pop_macro("UE_PLUGIN_NAME")
 
 namespace
 {
@@ -25,6 +48,13 @@ namespace
         Rule.ResolvedActorClass = ActorClass;
         return Rule;
     }
+
+    int32 FindWithSingleRule(const AActor& Actor, const FResolvedActorMetadataOverlayRule& Rule)
+    {
+        TArray<FResolvedActorMetadataOverlayRule> Rules;
+        Rules.Add(Rule);
+        return EditorActorTagDisplayRuleMatcher::FindMatchingRule(Actor, Rules);
+    }
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorActorTagDisplayRuleMatchingTest,
@@ -36,48 +66,39 @@ bool FEditorActorTagDisplayRuleMatchingTest::RunTest(const FString& Parameters)
     AEditorActorTagDisplayTestActor* Actor = MakeTestActor();
     Actor->Tags = {FName(TEXT("Required")), FName(TEXT("Other"))};
 
-    TArray<FResolvedActorMetadataOverlayRule> Rules;
-    FResolvedActorMetadataOverlayRule DisabledRule = MakeRule(AActor::StaticClass());
+    FResolvedActorMetadataOverlayRule DisabledRule = MakeRule(AEditorActorTagDisplayTestActor::StaticClass());
     DisabledRule.Rule.bEnabled = false;
-    Rules.Add(DisabledRule);
+    TestEqual(TEXT("Disabled only does not match"), FindWithSingleRule(*Actor, DisabledRule), INDEX_NONE);
 
-    FResolvedActorMetadataOverlayRule FirstRule = MakeRule(AEditorActorTagDisplayTestActor::StaticClass());
-    FirstRule.Rule.RequiredActorTags = {FName(TEXT("Required"))};
-    Rules.Add(FirstRule);
+    FResolvedActorMetadataOverlayRule ExactClassRule = MakeRule(AEditorActorTagDisplayTestActor::StaticClass());
+    ExactClassRule.Rule.bIncludeDerivedClasses = false;
+    TestEqual(TEXT("Exact class matches the exact actor class"), FindWithSingleRule(*Actor, ExactClassRule), 0);
 
-    FResolvedActorMetadataOverlayRule LaterRule = MakeRule(AActor::StaticClass());
-    Rules.Add(LaterRule);
+    FResolvedActorMetadataOverlayRule ExactBaseClassRule = MakeRule(AActor::StaticClass());
+    ExactBaseClassRule.Rule.bIncludeDerivedClasses = false;
+    TestEqual(TEXT("Exact class rejects a derived actor"), FindWithSingleRule(*Actor, ExactBaseClassRule), INDEX_NONE);
 
-    TestEqual(TEXT("The first enabled matching rule wins"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 1);
+    FResolvedActorMetadataOverlayRule IncludeDerivedRule = MakeRule(AActor::StaticClass());
+    IncludeDerivedRule.Rule.bIncludeDerivedClasses = true;
+    TestEqual(TEXT("Include derived accepts a derived actor"), FindWithSingleRule(*Actor, IncludeDerivedRule), 0);
 
-    FirstRule.Rule.bIncludeDerivedClasses = false;
-    Rules[1] = FirstRule;
-    TestEqual(TEXT("Exact class matching accepts the exact class"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 1);
+    FResolvedActorMetadataOverlayRule MissingRequiredTagRule = MakeRule(AEditorActorTagDisplayTestActor::StaticClass());
+    MissingRequiredTagRule.Rule.RequiredActorTags = {FName(TEXT("Missing"))};
+    TestEqual(TEXT("Missing required tag rejects the rule"), FindWithSingleRule(*Actor, MissingRequiredTagRule), INDEX_NONE);
 
-    FirstRule.ResolvedActorClass = AActor::StaticClass();
-    FirstRule.Rule.ActorClass = AActor::StaticClass();
-    FirstRule.Rule.bIncludeDerivedClasses = false;
-    Rules[1] = FirstRule;
-    TestEqual(TEXT("Exact class matching rejects a derived class"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 2);
+    FResolvedActorMetadataOverlayRule ExcludedTagRule = MakeRule(AEditorActorTagDisplayTestActor::StaticClass());
+    ExcludedTagRule.Rule.ExcludedActorTags = {FName(TEXT("Other"))};
+    TestEqual(TEXT("Present excluded tag rejects the rule"), FindWithSingleRule(*Actor, ExcludedTagRule), INDEX_NONE);
 
-    FirstRule.Rule.bIncludeDerivedClasses = true;
-    Rules[1] = FirstRule;
-    TestEqual(TEXT("Derived class matching accepts a derived class"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 1);
+    TArray<FResolvedActorMetadataOverlayRule> TwoMatchingRules;
+    TwoMatchingRules.Add(MakeRule(AEditorActorTagDisplayTestActor::StaticClass()));
+    TwoMatchingRules.Add(MakeRule(AActor::StaticClass()));
+    TestEqual(TEXT("The first of two matching rules wins"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, TwoMatchingRules), 0);
 
-    FirstRule.Rule.RequiredActorTags = {FName(TEXT("Required")), FName(TEXT("Missing"))};
-    Rules[1] = FirstRule;
-    TestEqual(TEXT("All required tags are required"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 2);
-
-    FirstRule.Rule.RequiredActorTags = {FName(TEXT("Required"))};
-    FirstRule.Rule.ExcludedActorTags = {FName(TEXT("Other"))};
-    Rules[1] = FirstRule;
-    TestEqual(TEXT("Any excluded tag rejects a rule"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 2);
-
-    FResolvedActorMetadataOverlayRule EmptyClassRule = MakeRule(nullptr);
-    EmptyClassRule.ResolvedActorClass = nullptr;
-    EmptyClassRule.Rule.ActorClass.Reset();
-    Rules.Insert(EmptyClassRule, 0);
-    TestEqual(TEXT("A null class rule never matches"), EditorActorTagDisplayRuleMatcher::FindMatchingRule(*Actor, Rules), 3);
+    FResolvedActorMetadataOverlayRule NullClassRule = MakeRule(nullptr);
+    NullClassRule.Rule.ActorClass.Reset();
+    NullClassRule.ResolvedActorClass = nullptr;
+    TestEqual(TEXT("Null class never matches"), FindWithSingleRule(*Actor, NullClassRule), INDEX_NONE);
     return true;
 }
 
@@ -87,42 +108,35 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorActorTagDisplayFixedTemplateTokensTest,
 
 bool FEditorActorTagDisplayFixedTemplateTokensTest::RunTest(const FString& Parameters)
 {
-    AEditorActorTagDisplayTestActor* Actor = MakeTestActor();
+    UWorld* EditorWorld = FAutomationEditorCommonUtils::CreateNewMap();
+    if (!TestNotNull(TEXT("CreateNewMap returns an editor world"), EditorWorld))
+    {
+        return false;
+    }
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Name = FName(TEXT("MetadataOverlayTestActor"));
+    SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ReturnNull;
+    AEditorActorTagDisplayTestActor* Actor = EditorWorld->SpawnActor<AEditorActorTagDisplayTestActor>(
+        AEditorActorTagDisplayTestActor::StaticClass(), FTransform::Identity, SpawnParameters);
+    if (!TestNotNull(TEXT("Spawn the metadata overlay test actor in the editor world"), Actor))
+    {
+        return false;
+    }
+
     Actor->SetActorLabel(TEXT("Display Label"));
     Actor->Tags = {FName(TEXT("zeta")), FName(TEXT("Alpha"))};
-
-    UGameplayTagsManager& GameplayTagsManager = UGameplayTagsManager::Get();
-    FGameplayTagContainer AvailableGameplayTags;
-    GameplayTagsManager.RequestAllGameplayTags(AvailableGameplayTags, true);
-    TArray<FGameplayTag> SortedGameplayTags;
-    AvailableGameplayTags.GetGameplayTagArray(SortedGameplayTags);
-    SortedGameplayTags.Sort([](const FGameplayTag& Left, const FGameplayTag& Right)
-    {
-        return Left.ToString().Compare(Right.ToString(), ESearchCase::IgnoreCase) < 0;
-    });
-
-    if (SortedGameplayTags.Num() >= 2)
-    {
-        Actor->GameplayTags.AddTag(SortedGameplayTags[1]);
-        Actor->GameplayTags.AddTag(SortedGameplayTags[0]);
-    }
+    Actor->GameplayTags.AddTag(TAG_EditorActorTagDisplay_Test_Zeta.GetTag());
+    Actor->GameplayTags.AddTag(TAG_EditorActorTagDisplay_Test_Alpha.GetTag());
+    Actor->SetFolderPath(FName(TEXT("OverlayTests/Folder")));
 
     TSet<FString> Warnings;
-    const FString Template = TEXT("{ActorLabel}\n{ActorName}\n{ActorClass}\n{ActorTags}\n{GameplayTags}\n{Folder}");
+    const FString Template = TEXT("{ActorLabel}\n{ActorName}\n{ActorClass}\n{ActorTags}\n{GameplayTags}\n{Folder}\n{DataLayers}");
+    const FString Expected = TEXT("Display Label\nMetadataOverlayTestActor\nEditorActorTagDisplayTestActor\nAlpha, zeta\nEditorActorTagDisplay.Test.Alpha, EditorActorTagDisplay.Test.Zeta\nOverlayTests/Folder\n");
     const FString Output = FEditorActorTagDisplayTemplateFormatter::Format(*Actor, Template, 120, Warnings);
-    TestTrue(TEXT("The label is present"), Output.Contains(TEXT("Display Label")));
-    TestTrue(TEXT("Actor tags use case-insensitive ordering"), Output.Contains(TEXT("Alpha, zeta")));
-    if (SortedGameplayTags.Num() >= 2)
-    {
-        const FString ExpectedGameplayTags = SortedGameplayTags[0].ToString() + TEXT(", ") + SortedGameplayTags[1].ToString();
-        TestTrue(TEXT("Gameplay tags use case-insensitive ordering"), Output.Contains(ExpectedGameplayTags));
-    }
-    else
-    {
-        TestTrue(TEXT("The gameplay tag token is resolved when the engine tag dictionary is empty"), !Output.Contains(TEXT("{GameplayTags}")));
-    }
-    TestTrue(TEXT("The folder token is resolved for a world-less test actor"), !Output.Contains(TEXT("{Folder}")));
-    TestTrue(TEXT("Template newlines are preserved"), Output.Contains(TEXT("Display Label\n")));
+    TestEqual(TEXT("Fixed tokens render the complete editor-world output"), Output, Expected);
+
+    EditorWorld->DestroyActor(Actor);
     return true;
 }
 
@@ -136,10 +150,8 @@ bool FEditorActorTagDisplayTemplateValidationTest::RunTest(const FString& Parame
     TSet<FString> Warnings;
     const FString Output = FEditorActorTagDisplayTemplateFormatter::Format(
         *Actor, TEXT("{UnknownToken}|{Property:Missing}|{Property:TestString.Value}|literal {"), 120, Warnings);
-    TestTrue(TEXT("Unknown tokens are explicit"), Output.Contains(TEXT("<unknown:UnknownToken>")));
-    TestTrue(TEXT("Missing properties are explicit"), Output.Contains(TEXT("<missing:Missing>")));
-    TestTrue(TEXT("Nested properties are rejected"), Output.Contains(TEXT("<unsupported:TestString.Value>")));
-    TestTrue(TEXT("Unclosed braces remain literal"), Output.EndsWith(TEXT("literal {")));
+    const FString Expected = TEXT("<unknown:UnknownToken>|<missing:Missing>|<unsupported:TestString.Value>|literal {");
+    TestEqual(TEXT("Invalid template tokens produce the documented complete output"), Output, Expected);
     return true;
 }
 
@@ -151,25 +163,38 @@ bool FEditorActorTagDisplayPropertyFormattingTest::RunTest(const FString& Parame
 {
     AEditorActorTagDisplayTestActor* Actor = MakeTestActor();
     Actor->ObjectReference = nullptr;
+    Actor->SoftObjectReference.Reset();
     Actor->TestString = TEXT("Line one\nLine two\twith tab");
     TSet<FString> Warnings;
 
-    const FString Output = FEditorActorTagDisplayTemplateFormatter::Format(
-        *Actor,
-        TEXT("{Property:bTestBool}|{Property:TestInteger}|{Property:TestFloat}|{Property:TestDouble}|{Property:TestName}|{Property:TestString}|{Property:TestText}|{Property:TestEnum}|{Property:ObjectReference}|{Property:TestStruct}|{Property:PrivateProperty}|{Property:TransientString}"),
-        120,
-        Warnings);
-    TestTrue(TEXT("Boolean formatting is stable"), Output.Contains(TEXT("true")));
-    TestTrue(TEXT("Integer formatting is stable"), Output.Contains(TEXT("42")));
-    TestTrue(TEXT("Floating point formatting is stable"), Output.Contains(TEXT("1.5")));
-    TestTrue(TEXT("Null object references are explicit"), Output.Contains(TEXT("None")));
-    TestTrue(TEXT("Struct formatting is present"), Output.Contains(TEXT("X=1")));
-    TestTrue(TEXT("Non-public properties are rejected"), Output.Contains(TEXT("<unsupported:PrivateProperty>")));
-    TestTrue(TEXT("Transient properties are rejected"), Output.Contains(TEXT("<unsupported:TransientString>")));
-    TestFalse(TEXT("Newlines and tabs are normalized"), Output.Contains(TEXT("\n")));
+    const auto FormatProperty = [&Actor, &Warnings](const TCHAR* PropertyName)
+    {
+        return FEditorActorTagDisplayTemplateFormatter::Format(
+            *Actor, FString::Printf(TEXT("{Property:%s}"), PropertyName), 120, Warnings);
+    };
 
-    const FString ShortOutput = FEditorActorTagDisplayTemplateFormatter::Format(*Actor, TEXT("{Property:TestString}"), 16, Warnings);
-    TestTrue(TEXT("Long properties are truncated with an ellipsis"), ShortOutput.Len() <= 16 && ShortOutput.EndsWith(TEXT("...")));
+    TestEqual(TEXT("Boolean formatting is stable"), FormatProperty(TEXT("bTestBool")), FString(TEXT("true")));
+    TestEqual(TEXT("Signed integer formatting is stable"), FormatProperty(TEXT("TestInteger")), FString(TEXT("42")));
+    TestEqual(TEXT("Unsigned integer formatting is stable"), FormatProperty(TEXT("TestUnsignedInteger")), FString(TEXT("84")));
+    TestEqual(TEXT("Float formatting is stable"), FormatProperty(TEXT("TestFloat")), FString(TEXT("1.5")));
+    TestEqual(TEXT("Double formatting is stable"), FormatProperty(TEXT("TestDouble")), FString(TEXT("2.5")));
+    TestEqual(TEXT("FName formatting is stable"), FormatProperty(TEXT("TestName")), FString(TEXT("TestName")));
+    TestEqual(TEXT("FString line breaks and tabs are normalized"), FormatProperty(TEXT("TestString")), FString(TEXT("Line one Line two with tab")));
+    TestEqual(TEXT("FText formatting is stable"), FormatProperty(TEXT("TestText")), FString(TEXT("Test Text")));
+    TestEqual(TEXT("Enum formatting is stable"), FormatProperty(TEXT("TestEnum")), FString(TEXT("Second")));
+    TestEqual(TEXT("Null UObject references are explicit"), FormatProperty(TEXT("ObjectReference")), FString(TEXT("None")));
+    TestEqual(TEXT("Null soft object references are explicit"), FormatProperty(TEXT("SoftObjectReference")), FString(TEXT("None")));
+    TestTrue(TEXT("Struct formatting contains X"), FormatProperty(TEXT("TestStruct")).Contains(TEXT("X=1")));
+    TestTrue(TEXT("Struct formatting contains Y"), FormatProperty(TEXT("TestStruct")).Contains(TEXT("Y=2")));
+    TestTrue(TEXT("Struct formatting contains Z"), FormatProperty(TEXT("TestStruct")).Contains(TEXT("Z=3")));
+    TestEqual(TEXT("Non-public properties are rejected"), FormatProperty(TEXT("PrivateProperty")), FString(TEXT("<unsupported:PrivateProperty>")));
+    TestEqual(TEXT("Transient properties are rejected"), FormatProperty(TEXT("TransientString")), FString(TEXT("<unsupported:TransientString>")));
+
+    const FString ShortOutput = FormatProperty(TEXT("TestString"));
+    const FString TruncatedOutput = FEditorActorTagDisplayTemplateFormatter::Format(*Actor, TEXT("{Property:TestString}"), 16, Warnings);
+    TestTrue(TEXT("Max length output is at most 16 characters"), TruncatedOutput.Len() <= 16);
+    TestTrue(TEXT("Max length output ends with an ellipsis"), TruncatedOutput.EndsWith(TEXT("...")));
+    TestFalse(TEXT("The full normalized string is not confused with the shortened output"), ShortOutput == TruncatedOutput);
     return true;
 }
 
@@ -186,10 +211,12 @@ bool FEditorActorTagDisplayDefaultConfigurationTest::RunTest(const FString& Para
     TestEqual(TEXT("Default distance is 10000"), UserSettings->GlobalMaxDrawDistance, 10000.0f);
     TestEqual(TEXT("Default project template is stable"), ProjectSettings->DefaultDisplayTemplate, FString(TEXT("{ActorLabel}\nClass: {ActorClass}\nTags: {ActorTags}")));
     TestEqual(TEXT("One default rule is present"), ProjectSettings->Rules.Num(), 1);
-    if (ProjectSettings->Rules.Num() == 1)
+    if (ProjectSettings->Rules.Num() != 1)
     {
-        TestEqual(TEXT("Default rule targets Actor"), ProjectSettings->Rules[0].ActorClass.Get(), AActor::StaticClass());
+        return false;
     }
+
+    TestEqual(TEXT("Default rule targets Actor"), ProjectSettings->Rules[0].ActorClass.Get(), AActor::StaticClass());
     return true;
 }
 

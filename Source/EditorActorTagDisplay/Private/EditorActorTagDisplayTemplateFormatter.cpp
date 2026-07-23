@@ -71,6 +71,43 @@ namespace
                CastField<FUInt64Property>(Property) != nullptr;
     }
 
+    FString FormatFloatingPoint(double Value)
+    {
+        FString Formatted = LexToString(Value);
+        const int32 DecimalIndex = Formatted.Find(TEXT("."));
+        if (DecimalIndex == INDEX_NONE)
+        {
+            return Formatted;
+        }
+
+        int32 MantissaEnd = Formatted.Len();
+        for (int32 Index = DecimalIndex + 1; Index < Formatted.Len(); ++Index)
+        {
+            if (Formatted[Index] == TCHAR('e') || Formatted[Index] == TCHAR('E'))
+            {
+                MantissaEnd = Index;
+                break;
+            }
+        }
+
+        int32 TrimmedEnd = MantissaEnd;
+        while (TrimmedEnd > DecimalIndex + 1 && Formatted[TrimmedEnd - 1] == TCHAR('0'))
+        {
+            --TrimmedEnd;
+        }
+        if (TrimmedEnd == DecimalIndex + 1)
+        {
+            --TrimmedEnd;
+        }
+
+        if (TrimmedEnd == MantissaEnd)
+        {
+            return Formatted;
+        }
+
+        return Formatted.Left(TrimmedEnd) + Formatted.Mid(MantissaEnd);
+    }
+
     bool IsDirectPropertyName(const FString& PropertyName)
     {
         return !PropertyName.IsEmpty() &&
@@ -268,7 +305,7 @@ FString FEditorActorTagDisplayTemplateFormatter::FormatProperty(const AActor& Ac
     {
         if (NumericProperty->IsFloatingPoint())
         {
-            Value = LexToString(NumericProperty->GetFloatingPointPropertyValue(ValuePtr));
+            Value = FormatFloatingPoint(NumericProperty->GetFloatingPointPropertyValue(ValuePtr));
         }
         else if (NumericProperty->IsInteger())
         {

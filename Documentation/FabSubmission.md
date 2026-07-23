@@ -39,6 +39,8 @@ Prepare at least these six screenshots:
 
 Every image should be at least 1920×1080, have readable UI, contain no misleading product or engine branding outside the demonstrated workflow, and avoid duplicating the same screen.
 
+Capture listing images in a normal Level Editor Viewport. Do not use Preview Editor or PIE images as evidence of the product feature.
+
 ## Engine packages
 
 Build and register one ZIP for each supported engine: Unreal Engine 5.6, 5.7, and 5.8. Each ZIP must contain only the `EditorActorTagDisplay` plugin folder for that engine and Win64.

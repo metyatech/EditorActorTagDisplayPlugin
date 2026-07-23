@@ -12,6 +12,9 @@
 - Added event-driven cache updates.
 - Added Automation Tests.
 - Added Fab packaging metadata and documentation.
+- Restricted overlays to matching Level Editor viewport scenes.
+- Prevented overlays from appearing in PIE, SIE, game, and asset preview viewports.
+- Added deterministic token and property formatting tests.
 
 ## 1.0.0
 

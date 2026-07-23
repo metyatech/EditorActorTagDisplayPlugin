@@ -45,6 +45,8 @@ Copy the `EditorActorTagDisplay` plugin folder into `<YourProject>/Plugins/`. Op
 - **Selected Actors** displays cached matching actors that are selected.
 - **All Matching Actors** displays every cached actor that matches a rule, subject to rule and global distance limits.
 
+The overlay is drawn in normal Level Editor Viewports, including Perspective, Top, Front, Side, and split Level Editor layouts. It remains visible when **Game View** is off. It is hidden when **Game View** is on, during PIE or SIE game screens, and in Static Mesh Editor or other Asset Preview Viewports.
+
 ## Rule Evaluation
 
 Rules are evaluated from top to bottom. The first enabled rule whose class and tag filters match an actor is used. An actor never receives multiple overlays. A blank or unresolved actor class does not match.
@@ -64,6 +66,8 @@ Per-user display mode, global distance, text scale, outline visibility, and boun
 ## Performance
 
 The plugin does not scan every actor every frame. It rebuilds an event-driven cache when the level or rules change, refreshes individual actors on actor events, and traverses only matching cached actors during viewport drawing.
+
+Canonical documentation: <https://metyatech.github.io/unreal-plugin-docs/editor-actor-tag-display/>.
 
 ## Limitations
 

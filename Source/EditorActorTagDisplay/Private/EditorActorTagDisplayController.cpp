@@ -16,6 +16,7 @@
 #include "Components/ActorComponent.h"
 #include "ISettingsModule.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "SceneView.h"
 #include "ToolMenus.h"
 #include "UObject/UObjectGlobals.h"
 #include "CanvasItem.h"
@@ -134,7 +135,7 @@ void FEditorActorTagDisplayController::UnregisterDelegates()
 void FEditorActorTagDisplayController::RegisterDebugDraw()
 {
     DebugDrawHandle = UDebugDrawService::Register(
-        TEXT("Game"),
+        TEXT("Editor"),
         FDebugDrawDelegate::CreateRaw(this, &FEditorActorTagDisplayController::HandleDebugDraw));
 }
 
@@ -149,13 +150,8 @@ void FEditorActorTagDisplayController::UnregisterDebugDraw()
 
 void FEditorActorTagDisplayController::RegisterMenusStartup()
 {
-	if (!UToolMenus::IsToolMenuUIEnabled())
-	{
-		return;
-	}
-
-	ToolMenusStartupCallbackHandle = UToolMenus::RegisterStartupCallback(
-		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FEditorActorTagDisplayController::RegisterMenus));
+    ToolMenusStartupCallbackHandle = UToolMenus::RegisterStartupCallback(
+        FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FEditorActorTagDisplayController::RegisterMenus));
 }
 
 void FEditorActorTagDisplayController::UnregisterMenus()
@@ -388,12 +384,18 @@ void FEditorActorTagDisplayController::HandleBlueprintReinstanced()
 
 void FEditorActorTagDisplayController::HandleDebugDraw(UCanvas* Canvas, APlayerController* PlayerController)
 {
-    if (Canvas == nullptr || Canvas->SceneView == nullptr || GEditor == nullptr)
+    if (Canvas == nullptr || Canvas->SceneView == nullptr || Canvas->SceneView->Family == nullptr || PlayerController != nullptr || GEditor == nullptr)
     {
         return;
     }
 
-    const UWorld* EditorWorld = GetEditorWorld();
+    UWorld* EditorWorld = GetEditorWorld();
+    if (EditorWorld == nullptr || EditorWorld->WorldType != EWorldType::Editor || EditorWorld->Scene == nullptr ||
+        Canvas->SceneView->Family->Scene != EditorWorld->Scene)
+    {
+        return;
+    }
+
     const UEditorActorTagDisplayUserSettings* UserSettings = GetDefault<UEditorActorTagDisplayUserSettings>();
     const UEditorActorTagDisplayProjectSettings* ProjectSettings = GetDefault<UEditorActorTagDisplayProjectSettings>();
     if (EditorWorld == nullptr || UserSettings == nullptr || ProjectSettings == nullptr ||

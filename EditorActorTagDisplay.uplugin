@@ -7,7 +7,7 @@
 	"Category": "Editor",
 	"CreatedBy": "Udon-Tobira",
 	"CreatedByURL": "https://github.com/metyatech",
-	"DocsURL": "https://github.com/metyatech/EditorActorTagDisplayPlugin#readme",
+	"DocsURL": "https://metyatech.github.io/unreal-plugin-docs/editor-actor-tag-display/",
 	"MarketplaceURL": "",
 	"SupportURL": "https://github.com/metyatech/EditorActorTagDisplayPlugin/issues",
 	"EngineVersion": "5.8.0",

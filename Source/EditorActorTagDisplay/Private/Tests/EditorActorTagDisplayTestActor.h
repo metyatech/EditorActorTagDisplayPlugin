@@ -38,6 +38,9 @@ public:
     double TestDouble = 2.5;
 
     UPROPERTY(EditAnywhere, Category = "Test")
+    uint32 TestUnsignedInteger = 84;
+
+    UPROPERTY(EditAnywhere, Category = "Test")
     FName TestName = TEXT("TestName");
 
     UPROPERTY(EditAnywhere, Category = "Test")
@@ -51,6 +54,9 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Test")
     TObjectPtr<UObject> ObjectReference;
+
+    UPROPERTY(EditAnywhere, Category = "Test")
+    TSoftObjectPtr<UObject> SoftObjectReference;
 
     UPROPERTY(EditAnywhere, Category = "Test")
     FVector TestStruct = FVector(1.0f, 2.0f, 3.0f);
