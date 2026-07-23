@@ -1,84 +1,73 @@
+// Copyright 2026 Udon-Tobira. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "UObject/SoftObjectPtr.h"
-#include "Delegates/Delegate.h"
+#include "EditorActorTagDisplayTypes.h"
 #include "EditorActorTagDisplaySettings.generated.h"
 
-class AActor;
-
-USTRUCT()
-struct EDITORACTORTAGDISPLAY_API FActorClassTagDisplayConfig
+UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Actor Metadata Overlay"))
+class EDITORACTORTAGDISPLAY_API UEditorActorTagDisplayProjectSettings : public UDeveloperSettings
 {
-    // NOLINTNEXTLINE
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, Category = "Actor Class Tag Display")
-    TSoftClassPtr<AActor> ActorClass;
-
-    UPROPERTY(EditAnywhere, Category = "Actor Class Tag Display")
-    FLinearColor DisplayColor = FLinearColor::White;
-
-    UPROPERTY(EditAnywhere, Category = "Actor Class Tag Display", meta = (DisplayName = "Position Offset"))
-    FVector PositionOffset = FVector::ZeroVector;
-};
-
-UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Actor Tag Display"))
-class EDITORACTORTAGDISPLAY_API UEditorActorTagDisplaySettings : public UDeveloperSettings
-{
-    // NOLINTNEXTLINE
     GENERATED_BODY()
 
 public:
-    UEditorActorTagDisplaySettings();
+    UEditorActorTagDisplayProjectSettings();
 
-    // UDeveloperSettings overrides
-    auto GetContainerName() const -> FName override { return {"Editor"}; }
-    auto GetCategoryName() const -> FName override { return {"Plugins"}; }
-    auto GetSectionName() const -> FName override { return {"EditorActorTagDisplay"}; }
+    virtual FName GetContainerName() const override { return TEXT("Project"); }
+    virtual FName GetCategoryName() const override { return TEXT("Plugins"); }
+    virtual FName GetSectionName() const override { return TEXT("ActorMetadataOverlay"); }
 
 #if WITH_EDITOR
-    auto PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) -> void override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-    // 設定値へのアクセサ
-    auto GetClassConfigs() const -> const TArray<FActorClassTagDisplayConfig> & { return ClassConfigs; }
-    auto IsTagDisplayEnabled() const -> bool { return bIsTagDisplayEnabled; }
-    auto SetTagDisplayEnabled(bool bEnabled) -> void;
-    auto GetTextSize() const -> float { return TextSize; }
-    auto SetTextSize(float InTextSize) -> void;
-    auto GetOutlineWidth() const -> float { return OutlineWidth; }
-    auto SetOutlineWidth(float InOutlineWidth) -> void;
+    static UEditorActorTagDisplayProjectSettings* Get();
 
-    // 静的アクセサ
-    static auto Get() -> UEditorActorTagDisplaySettings *;
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay")
+    TArray<FActorMetadataOverlayRule> Rules;
 
-    // デリゲート宣言
-    DECLARE_MULTICAST_DELEGATE_OneParam(FOnTextSizeChanged, float);
-    DECLARE_MULTICAST_DELEGATE_OneParam(FOnOutlineWidthChanged, float);
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay", meta = (MultiLine = "true"))
+    FString DefaultDisplayTemplate;
 
-    // デリゲートアクセサ（モジュール用）
-    auto GetOnTextSizeChangedDelegate() -> FOnTextSizeChanged & { return OnTextSizeChanged; }
-    auto GetOnOutlineWidthChangedDelegate() -> FOnOutlineWidthChanged & { return OnOutlineWidthChanged; }
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay")
+    FLinearColor OutlineColor = FLinearColor::Black;
 
-private:
-    // デリゲートインスタンス
-    FOnTextSizeChanged OnTextSizeChanged;
-    FOnOutlineWidthChanged OnOutlineWidthChanged;
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay", meta = (ClampMin = "16", ClampMax = "1024", UIMin = "16", UIMax = "1024"))
+    int32 MaxPropertyValueLength = 120;
+};
 
-    static constexpr float DefaultTextSize = 30.0F;
-    static constexpr float DefaultOutlineWidth = 10.0F;
+UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Actor Metadata Overlay"))
+class EDITORACTORTAGDISPLAY_API UEditorActorTagDisplayUserSettings : public UDeveloperSettings
+{
+    GENERATED_BODY()
 
-    UPROPERTY(config, EditAnywhere, Category = "Actor Tag Display", meta = (DisplayName = "Class Configurations"))
-    TArray<FActorClassTagDisplayConfig> ClassConfigs;
+public:
+    UEditorActorTagDisplayUserSettings() = default;
 
-    UPROPERTY(config, EditAnywhere, Category = "Actor Tag Display", meta = (DisplayName = "Enable Tag Display"))
-    bool bIsTagDisplayEnabled = false;
+    virtual FName GetContainerName() const override { return TEXT("Editor"); }
+    virtual FName GetCategoryName() const override { return TEXT("Plugins"); }
+    virtual FName GetSectionName() const override { return TEXT("ActorMetadataOverlay"); }
 
-    UPROPERTY(config, EditAnywhere, Category = "Actor Tag Display", meta = (DisplayName = "Text Size"))
-    float TextSize = DefaultTextSize;
+#if WITH_EDITOR
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
-    UPROPERTY(config, EditAnywhere, Category = "Actor Tag Display", meta = (DisplayName = "Outline Width"))
-    float OutlineWidth = DefaultOutlineWidth;
+    static UEditorActorTagDisplayUserSettings* Get();
+
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay")
+    EActorMetadataOverlayMode DisplayMode = EActorMetadataOverlayMode::Selected;
+
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay", meta = (ClampMin = "0.0", UIMin = "0.0"))
+    float GlobalMaxDrawDistance = 10000.0f;
+
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay", meta = (ClampMin = "0.25", ClampMax = "4.0", UIMin = "0.25", UIMax = "4.0"))
+    float TextScale = 1.0f;
+
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay")
+    bool bOutlined = true;
+
+    UPROPERTY(config, EditAnywhere, Category = "Actor Metadata Overlay")
+    bool bDrawBoundingBoxes = true;
 };

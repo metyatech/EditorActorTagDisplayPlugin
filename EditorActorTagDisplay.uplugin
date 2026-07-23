@@ -1,18 +1,21 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "1.0.0",
-	"FriendlyName": "Editor Actor Tag Display",
-	"Description": "Displays actor tags in the editor viewport for specified actor classes",
+	"Version": 2,
+	"VersionName": "2.0.0",
+	"FriendlyName": "Actor Metadata Overlay",
+	"Description": "Rule-based editor viewport overlays for actor labels, classes, Actor Tags, Gameplay Tags, folders, data layers, and selected properties.",
 	"Category": "Editor",
 	"CreatedBy": "Udon-Tobira",
-	"CreatedByURL": "",
-	"DocsURL": "https://metyatech.github.io/unreal-plugin-docs/editor-actor-tag-display/",
+	"CreatedByURL": "https://github.com/metyatech",
+	"DocsURL": "https://github.com/metyatech/EditorActorTagDisplayPlugin#readme",
 	"MarketplaceURL": "",
-	"SupportURL": "",
-	"EngineVersion": "5.6.0",
+	"SupportURL": "https://github.com/metyatech/EditorActorTagDisplayPlugin/issues",
+	"EngineVersion": "5.8.0",
 	"CanContainContent": true,
 	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64"
+	],
 	"Modules": [
 		{
 			"Name": "EditorActorTagDisplay",

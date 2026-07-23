@@ -1,3 +1,5 @@
+// Copyright 2026 Udon-Tobira. All Rights Reserved.
+
 using UnrealBuildTool;
 
 public class EditorActorTagDisplay : ModuleRules
@@ -6,11 +8,13 @@ public class EditorActorTagDisplay : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+        PrecompileForTargets = PrecompileTargetsType.Editor;
 
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "GameplayTags"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] {
@@ -19,7 +23,8 @@ public class EditorActorTagDisplay : ModuleRules
             "Slate",
             "SlateCore",
             "DeveloperSettings",
-            "ToolMenus"
+            "ToolMenus",
+            "Settings"
         });
     }
 }
